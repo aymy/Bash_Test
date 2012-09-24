@@ -1,0 +1,61 @@
+#!/bin/bash
+
+Usage(){
+	echo "Usage: ${0} [-q|--quiet] suit-file program OR ${0} suit-file program: \"Incorrect number of command line arguments\"">&2
+	exit 1
+}
+
+default(){
+	quiet_mode=1
+}
+
+if [ ${#} -ne 3 -a ${#} -ne 4] ; then Usage ; fi
+default
+
+if [ ${1} = "-q" -o ${1} = "--quiet" ] ; then
+	shift 1
+else 
+	quiet_mode=0
+fi
+
+for line in `cat ${1}`
+	do 
+		in_suf=".in"
+		out_suf=".out"
+		f_in=${line}${in_suf}
+		f_out=${line}${out_suf}
+		if [ ! -e ${f_in} ] ; then
+			echo "${f_in} is missing" >&2
+			exit 2
+		fi
+		if [ ! -r ${f_in} ] ; then
+			echo "${f_in} is unreadable.">&2
+			exit 2
+		fi
+		if [ ! -e ${f_out} ] ; then
+			echo "${f_out} is missing">&2
+			exit 2
+		fi
+		if [ ! -r ${f_out} ] ; then
+			echo "${f_out} is unreadable.">&2
+			exit 2
+		fi
+		tmp_file=$(mktemp)
+		${2} <${f_in} >${tmp_file}
+		diff ${tmp_file} ${f_out} > /dev/null
+		if [ ${?} -ne 0 ] ; then
+			if [ ${quiet_mode} -eq 0 ] ; then
+				echo "Test failed: ${line}"
+				echo "Input:"
+				cat ${f_in}
+				echo "Expected:"
+				cat ${f_out}
+				echo "Actual:"
+				cat ${tmp_file}
+			elif [ ${quiet_mode} -eq 1 ] ; then
+				echo "Test failed: ${line}"
+			fi
+		fi
+		rm ${tmp_file}
+done
+
